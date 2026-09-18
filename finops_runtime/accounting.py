@@ -9,12 +9,13 @@ from .model import Allocation, SharedPool, Usage
 
 def allocate(usage: Iterable[Usage], pools: Iterable[SharedPool]) -> list[Allocation]:
     usages = list(usage)
+    shared_pools = list(pools)
     by_resource: dict[str, Decimal] = defaultdict(Decimal)
     for item in usages:
         by_resource[item.resource] += item.driver
     allocations: list[Allocation] = []
     for item in usages:
-        pool = next((p for p in pools if p.resource == item.resource), None)
+        pool = next((p for p in shared_pools if p.resource == item.resource), None)
         shared = Decimal(0)
         carbon = Decimal(0)
         source = "direct"
@@ -44,7 +45,9 @@ def reconcile(allocations: Iterable[Allocation], pools: Iterable[SharedPool]) ->
     for item in allocations:
         if item.source.startswith("shared:"):
             allocated[item.resource] += item.shared_cost
-    expected: dict[str, Decimal] = {p.resource: p.cost for p in pools}
+    expected: dict[str, Decimal] = defaultdict(Decimal)
+    for pool in pools:
+        expected[pool.resource] += pool.cost
     return {
         resource: expected.get(resource, Decimal(0)) - amount
         for resource, amount in allocated.items()

@@ -14,6 +14,10 @@ def _score(
 
 
 def choose(window_list: list[LocationWindow], workload: Workload) -> LocationWindow:
+    if not window_list:
+        raise ValueError("at least one placement window is required")
+    if workload.units <= 0:
+        raise ValueError("workload units must be positive")
     eligible = [w for w in window_list if w.latency_ms <= workload.max_latency_ms]
     if not eligible:
         raise ValueError("no placement satisfies the SLO latency guard")
