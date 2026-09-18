@@ -27,11 +27,15 @@ def choose(window_list: list[LocationWindow], workload: Workload) -> LocationWin
 
 
 def defer(
-    window_list: list[LocationWindow], workload: Workload, current: LocationWindow
+    window_list: list[LocationWindow],
+    workload: Workload,
+    current: LocationWindow,
+    current_index: int = 0,
 ) -> LocationWindow:
     if not workload.batch or workload.deadline_window <= 0:
         return current
-    selected = choose(window_list, workload)
+    candidates = window_list[: current_index + workload.deadline_window + 1]
+    selected = choose(candidates, workload)
     return (
         selected
         if _score(

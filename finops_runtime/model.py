@@ -15,6 +15,7 @@ class Usage:
     direct_cost: Decimal = Decimal(0)
     driver: Decimal = Decimal(0)
     requests: int = 0
+    pool_id: str | None = None
 
 
 @dataclass(frozen=True)
