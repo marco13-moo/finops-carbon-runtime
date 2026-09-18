@@ -1,0 +1,9 @@
+{
+  "usage": [
+    {"tenant": "acme", "service": "checkout", "resource": "kubernetes", "direct_cost": "1.20", "driver": "60", "requests": 1200},
+    {"tenant": "beta", "service": "reports", "resource": "kubernetes", "direct_cost": "0.80", "driver": "40", "requests": 400}
+  ],
+  "pools": [
+    {"pool_id": "node-pool-a", "resource": "kubernetes", "cost": "10", "carbon_grams": "1000", "capacity": "120", "idle_capacity": "20"}
+  ]
+}
