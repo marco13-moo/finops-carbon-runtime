@@ -12,8 +12,8 @@ class Usage:
     tenant: str
     service: str
     resource: ResourceKind
-    direct_cost: Decimal = Decimal("0")
-    driver: Decimal = Decimal("0")
+    direct_cost: Decimal = Decimal(0)
+    driver: Decimal = Decimal(0)
     requests: int = 0
 
 
@@ -24,7 +24,7 @@ class SharedPool:
     cost: Decimal
     carbon_grams: Decimal
     capacity: Decimal
-    idle_capacity: Decimal = Decimal("0")
+    idle_capacity: Decimal = Decimal(0)
 
 
 @dataclass(frozen=True)
