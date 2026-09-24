@@ -10,6 +10,7 @@ from .model import Allocation, SharedPool, Usage
 def allocate(usage: Iterable[Usage], pools: Iterable[SharedPool]) -> list[Allocation]:
     usages = list(usage)
     shared_pools = list(pools)
+    _validate_inputs(usages, shared_pools)
     pools_by_resource: dict[str, list[SharedPool]] = defaultdict(list)
     for pool in shared_pools:
         pools_by_resource[pool.resource].append(pool)
@@ -51,6 +52,26 @@ def allocate(usage: Iterable[Usage], pools: Iterable[SharedPool]) -> list[Alloca
     return allocations
 
 
+def _validate_inputs(usages: list[Usage], pools: list[SharedPool]) -> None:
+    """Reject quantities that would make allocation or reconciliation non-conservative."""
+    pool_ids: set[str] = set()
+    for pool in pools:
+        if not pool.pool_id.strip():
+            raise ValueError("pool_id is required")
+        if pool.pool_id in pool_ids:
+            raise ValueError(f"duplicate pool_id {pool.pool_id!r}")
+        pool_ids.add(pool.pool_id)
+        if pool.cost < 0 or pool.carbon_grams < 0:
+            raise ValueError(f"pool {pool.pool_id!r} cannot have negative cost or carbon")
+        if pool.capacity < 0 or pool.idle_capacity < 0:
+            raise ValueError(f"pool {pool.pool_id!r} cannot have negative capacity")
+        if pool.idle_capacity > pool.capacity:
+            raise ValueError(f"pool {pool.pool_id!r} idle capacity exceeds total capacity")
+    for item in usages:
+        if item.direct_cost < 0 or item.driver < 0 or item.requests < 0:
+            raise ValueError("usage cost, driver, and requests must be non-negative")
+
+
 def _pool_for(item: Usage, candidates: list[SharedPool]) -> SharedPool | None:
     if item.pool_id is not None:
         return next((pool for pool in candidates if pool.pool_id == item.pool_id), None)
@@ -58,6 +79,8 @@ def _pool_for(item: Usage, candidates: list[SharedPool]) -> SharedPool | None:
 
 
 def reconcile(allocations: Iterable[Allocation], pools: Iterable[SharedPool]) -> dict[str, Decimal]:
+    allocations = list(allocations)
+    pools = list(pools)
     allocated: dict[str, Decimal] = defaultdict(Decimal)
     for item in allocations:
         if item.source.startswith("shared:"):
@@ -65,15 +88,19 @@ def reconcile(allocations: Iterable[Allocation], pools: Iterable[SharedPool]) ->
     expected: dict[str, Decimal] = defaultdict(Decimal)
     for pool in pools:
         expected[pool.resource] += pool.cost
+    resources = list(expected)
+    resources.extend(resource for resource in allocated if resource not in expected)
     return {
-        resource: expected.get(resource, Decimal(0)) - amount
-        for resource, amount in allocated.items()
+        resource: expected.get(resource, Decimal(0)) - allocated.get(resource, Decimal(0))
+        for resource in resources
     }
 
 
 def reconcile_carbon(
     allocations: Iterable[Allocation], pools: Iterable[SharedPool]
 ) -> dict[str, Decimal]:
+    allocations = list(allocations)
+    pools = list(pools)
     allocated: dict[str, Decimal] = defaultdict(Decimal)
     expected: dict[str, Decimal] = defaultdict(Decimal)
     for item in allocations:
@@ -81,9 +108,11 @@ def reconcile_carbon(
             allocated[item.resource] += item.carbon_grams
     for pool in pools:
         expected[pool.resource] += pool.carbon_grams
+    resources = list(expected)
+    resources.extend(resource for resource in allocated if resource not in expected)
     return {
-        resource: expected.get(resource, Decimal(0)) - amount
-        for resource, amount in allocated.items()
+        resource: expected.get(resource, Decimal(0)) - allocated.get(resource, Decimal(0))
+        for resource in resources
     }
 
 
@@ -91,6 +120,7 @@ def pool_report(
     allocations: Iterable[Allocation], pools: Iterable[SharedPool]
 ) -> list[dict[str, Decimal | str]]:
     """Expose allocated, idle, and unallocated capacity without assigning it."""
+    allocations = list(allocations)
     rows: list[dict[str, Decimal | str]] = []
     for pool in pools:
         source = f"shared:{pool.pool_id}"

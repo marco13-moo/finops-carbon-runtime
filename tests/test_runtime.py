@@ -64,6 +64,23 @@ class RuntimeTests(unittest.TestCase):
         allocations = allocate(usage, pools)
         self.assertEqual(reconcile(allocations, pools)["kubernetes"], Decimal("0.0000"))
 
+    def test_reconciliation_includes_unallocated_pool_resources(self) -> None:
+        self.assertEqual(reconcile([], [self.pool])["kubernetes"], Decimal(8))
+        self.assertEqual(reconcile_carbon([], [self.pool])["kubernetes"], Decimal(400))
+
+    def test_allocation_rejects_non_conservative_quantities(self) -> None:
+        with self.assertRaises(ValueError):
+            allocate([Usage("a", "svc", "kubernetes", driver=Decimal(-1))], [self.pool])
+        with self.assertRaises(ValueError):
+            allocate(
+                self.usage,
+                [
+                    SharedPool(
+                        "node", "kubernetes", Decimal(8), Decimal(400), Decimal(1), Decimal(2)
+                    )
+                ],
+            )
+
     def test_benchmark_proves_target(self) -> None:
         result = run()
         self.assertTrue(result["reduced_cost"])
